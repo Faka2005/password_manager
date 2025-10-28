@@ -1,0 +1,22 @@
+/* Centrage des pages Login et Register */
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* centre verticalement */
+  align-items: center; /* centre horizontalement */
+  height: 100vh; /* prend toute la hauteur de la fenêtre */
+}
+
+
+p{
+    color: black;
+}
+/* Bouton d’action */
+.auth-form button {
+  margin-top: 1rem;
+}
+
+/* Pour éviter que les autres pages soient affectées */
+body:not(.auth-page) {
+  background: white;
+}
