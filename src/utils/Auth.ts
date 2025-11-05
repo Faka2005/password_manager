@@ -64,6 +64,6 @@ export async function LoginUserApi(
 
 export function logout(){
   localStorage.removeItem('user')
-  window.location.reload()
+  window.location.reload()()
 }
 

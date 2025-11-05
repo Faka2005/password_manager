@@ -64,7 +64,7 @@ const Dashboard: React.FC = () => {
             setAlert({ type: "success", message: "✅ Mot de passe ajouté !" });
             setShowModalajoutpassword(false);
             setNewPassword({ site: "", email: "", password: "", description: "" });
-            window.location.reload;
+            window.location.reload();
         } else {
             setAlert({ type: "error", message: "❌ " + res.message });
         }
@@ -77,7 +77,7 @@ const Dashboard: React.FC = () => {
         if (res.success) {
             setPasswords(passwords.filter(p => p._id !== id));
             setAlert({ type: "success", message: res.message });
-            window.location.reload;
+            window.location.reload();
         } else {
             setAlert({ type: "error", message: res.message });
         }
@@ -95,7 +95,7 @@ const Dashboard: React.FC = () => {
         if (res.success) {
             setPasswords(passwords.map(p => (p._id === item._id ? { ...p, ...updateObj } : p)));
             setAlert({ type: "success", message: "✅ Modifié !" });
-            window.location.reload;
+            window.location.reload();
 
         } else {
             setAlert({ type: "error", message: res.message });
