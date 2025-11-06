@@ -18,6 +18,7 @@ const Dashboard: React.FC = () => {
     const [passwords, setPasswords] = useState<PasswordItem[]>([]);
     const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const [showModalajoutpassword, setShowModalajoutpassword] = useState(false);
+    const [showModalCSV, setShowModalCSV] = useState(false);
     const [newPassword, setNewPassword] = useState<Password>({
         site: "",
         email: "",
@@ -143,6 +144,16 @@ const Dashboard: React.FC = () => {
                             <h4>Mes mots de passe</h4>
                             <Button variant="success" onClick={() => setShowModalajoutpassword(true)}>
                                 ➕ Ajouter
+                            </Button>
+                            <Button variant="success" onClick={() => setShowModalCSV(true)}>
+                                Exporter CSV
+                            </Button>
+                            <Button variant="success" onClick={() => {
+                                import("../utils/csv").then(({ exportToCsv }) => {
+                                    exportToCsv(user._id);
+                                });
+                            }}>
+                                Importer CSV
                             </Button>
                         </div>
 
@@ -278,6 +289,46 @@ const Dashboard: React.FC = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+{/* Modal import CSV */}
+  <Modal show={showModalCSV} onHide={() => setShowModalCSV(false)} centered>
+    <Modal.Header closeButton>
+      <Modal.Title>Importer des mots de passe depuis un fichier CSV</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      <Form>
+        <Form.Group className="mb-3">
+          <Form.Label>Choisir un fichier CSV</Form.Label>
+          <Form.Control
+            type="file"
+            accept=".csv"
+            onChange={(e) => {
+              const input = e.target as HTMLInputElement;
+              const file = input.files?.[0];
+              if (file) {
+                import("../utils/csv")
+                  .then(({ importFromCsv }) => {
+                    importFromCsv(file)
+                      .then(async (importedPasswords) => {
+                        for (const p of importedPasswords) {
+                          await AddPassword(p);
+                        }
+                        setPasswords(prev => [...prev, ...importedPasswords]);
+                        setAlert({ type: "success", message: "Mots de passe importés avec succès ✅" });
+                        setShowModalCSV(false);
+                      })
+                      .catch(error => {
+                        console.error("Erreur lors de l'import CSV :", error);
+                        setAlert({ type: "error", message: "Erreur lors de l'importation du CSV" });
+                      });
+                  });
+              }
+            }}
+          />
+        </Form.Group>
+      </Form>
+    </Modal.Body>
+  </Modal>
         </Container>
     );
 };
