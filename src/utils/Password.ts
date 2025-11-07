@@ -96,21 +96,17 @@ export async function DeletePassword(id: string) {
  * Modifie un mot de passe
   *@param id -Id du mot de passe à modifier
  */
-export async function ModifyPassword(id: string, password: string) {
+export async function ModifyPassword(id: string, updatedFields: Partial<Password>) {
   try {
-    const res = await fetch(`https://api-password-manager.onrender.com/user/password/${id}`, {
+    const response = await fetch(`http://localhost:5000/user/password/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(updatedFields),
     });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Erreur lors de la modification");
-
-    return { success: true, message: data.message };
+    const data = await response.json();
+    return data;
   } catch (error) {
-    const err = error as ApiError;
-    console.error("Erreur dans ModifyPassword :", err);
-    return { success: false, message: err.message || "Erreur serveur" };
+    return { success: false, message: "Erreur réseau" };
   }
 }
+

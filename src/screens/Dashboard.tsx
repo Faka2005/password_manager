@@ -6,331 +6,341 @@ import { useUserStorage } from "../utils/Storagelocal";
 import BasicAlerts from "../components/Alerts";
 import { AddPassword, ListePassword, DeletePassword, ModifyPassword, type Password } from "../utils/Password";
 import { logout } from "../utils/Auth";
-import GeneratePassword from "../utils/Generatepassword"; // ⚠️ Doit être un export par défaut
+import GeneratePassword from "../utils/Generatepassword";
 
 interface PasswordItem extends Password {
-    _id?: string;
+  _id?: string;
 }
 
 const Dashboard: React.FC = () => {
-    const user = useUserStorage();
+  const user = useUserStorage();
 
-    const [passwords, setPasswords] = useState<PasswordItem[]>([]);
-    const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
-    const [showModalajoutpassword, setShowModalajoutpassword] = useState(false);
-    const [showModalCSV, setShowModalCSV] = useState(false);
-    const [newPassword, setNewPassword] = useState<Password>({
-        site: "",
-        email: "",
-        password: "",
-        description: ""
-    });
-    const [showPasswordIds, setShowPasswordIds] = useState<Set<string>>(new Set());
+  const [passwords, setPasswords] = useState<PasswordItem[]>([]);
+  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showModalAdd, setShowModalAdd] = useState(false);
+  const [showModalModify, setShowModalModify] = useState(false);
+  const [showModalDelete, setShowModalDelete] = useState(false);
+  const [selectedPassword, setSelectedPassword] = useState<PasswordItem | null>(null);
+  const [newPassword, setNewPassword] = useState<Password>({
+    site: "",
+    email: "",
+    password: "",
+    description: "",
+  });
+  const [showPasswordIds, setShowPasswordIds] = useState<Set<string>>(new Set());
 
-    // 🔹 Charger la liste des mots de passe
-    useEffect(() => {
-        const fetchPasswords = async () => {
-            if (!user?._id) return;
-            const res = await ListePassword(user._id);
-            if (res.success) {
-                setPasswords(res.data || []);
-            } else {
-                setAlert({ type: "error", message: "Erreur lors du chargement des mots de passe" });
-            }
-        };
-        fetchPasswords();
-    }, [user]);
+  // 🔹 Charger les mots de passe
+  useEffect(() => {
+    const fetchPasswords = async () => {
+      if (!user?._id) return;
+      const res = await ListePassword(user._id);
+      if (res.success) {
+        setPasswords(res.data || []);
+      } else {
+        setAlert({ type: "error", message: "Erreur lors du chargement des mots de passe" });
+      }
+    };
+    fetchPasswords();
+  }, [user]);
 
-    // 🔹 Redirection si pas connecté
-    if (!user) {
-        return (
-            <Container fluid className="text-center d-flex flex-column justify-content-center align-items-center" style={{ height: "80vh" }}>
-                <h2>Bienvenue sur Password Manager 🔐</h2>
-                <p>Connectez-vous pour gérer vos mots de passe en toute sécurité.</p>
-                <Button variant="primary" href="/login">Se connecter</Button>
-            </Container>
-        );
+  // 🔹 Déconnexion si pas d'utilisateur
+  if (!user) {
+    return (
+      <Container
+        fluid
+        className="text-center d-flex flex-column justify-content-center align-items-center"
+        style={{ height: "80vh" }}
+      >
+        <h2>Bienvenue sur Password Manager 🔐</h2>
+        <p>Connectez-vous pour gérer vos mots de passe en toute sécurité.</p>
+        <Button variant="primary" href="/login">
+          Se connecter
+        </Button>
+      </Container>
+    );
+  }
+
+  // 🔹 Ajouter un mot de passe
+  const handleAddPassword = async () => {
+    if (!newPassword.site || !newPassword.email || !newPassword.password) {
+      setAlert({ type: "error", message: "Veuillez remplir tous les champs obligatoires" });
+      return;
     }
 
-    // 🔹 Ajouter un mot de passe
-    const handleAddPassword = async () => {
-        if (!newPassword.site || !newPassword.email || !newPassword.password) {
-            setAlert({ type: "error", message: "Veuillez remplir tous les champs obligatoires" });
-            return;
-        }
+    const res = await AddPassword(newPassword);
+    if (res.success) {
+      setPasswords([...passwords, res.data]);
+      setAlert({ type: "success", message: "✅ Mot de passe ajouté !" });
+      setShowModalAdd(false);
+      setNewPassword({ site: "", email: "", password: "", description: "" });
+    } else {
+      setAlert({ type: "error", message: "❌ " + res.message });
+    }
+  };
 
-        const res = await AddPassword(newPassword);
-        if (res.success) {
-            setPasswords([...passwords, res.data]);
-            setAlert({ type: "success", message: "✅ Mot de passe ajouté !" });
-            setShowModalajoutpassword(false);
-            setNewPassword({ site: "", email: "", password: "", description: "" });
-            window.location.reload();
-        } else {
-            setAlert({ type: "error", message: "❌ " + res.message });
-        }
-    };
+  // 🔹 Supprimer un mot de passe
+  const handleDeletePassword = async () => {
+    if (!selectedPassword?._id) return;
+    const res = await DeletePassword(selectedPassword._id);
+    if (res.success) {
+      setPasswords(passwords.filter((p) => p._id !== selectedPassword._id));
+      setAlert({ type: "success", message: res.message });
+      setShowModalDelete(false);
+    } else {
+      setAlert({ type: "error", message: res.message });
+    }
+  };
 
-    // 🔹 Supprimer un mot de passe
-    const handleDelete = async (id?: string) => {
-        if (!id) return;
-        const res = await DeletePassword(id);
-        if (res.success) {
-            setPasswords(passwords.filter(p => p._id !== id));
-            setAlert({ type: "success", message: res.message });
-            window.location.reload();
-        } else {
-            setAlert({ type: "error", message: res.message });
-        }
-    };
+  // 🔹 Modifier un mot de passe
+  const handleSaveModification = async () => {
+    if (!selectedPassword?._id) return;
 
-    // 🔹 Modifier un champ
-    const handleModify = async (item: PasswordItem, field: keyof PasswordItem) => {
-        const newValue = prompt(`Modifier ${field}`, item[field] || "");
-        if (!newValue || !item._id) return;
+    const res = await ModifyPassword(selectedPassword._id, selectedPassword);
+    if (res.success) {
+      setPasswords(passwords.map((p) => (p._id === selectedPassword._id ? selectedPassword : p)));
+      setAlert({ type: "success", message: "✅ Mot de passe modifié !" });
+      setShowModalModify(false);
+    } else {
+      setAlert({ type: "error", message: res.message });
+    }
+  };
 
-        const updateObj: Partial<PasswordItem> = {};
-        updateObj[field] = newValue;
+  // 🔹 Copier
+  const handleCopy = (password: string) => {
+    navigator.clipboard.writeText(password);
+    setAlert({ type: "success", message: "Mot de passe copié !" });
+  };
 
-        const res = await ModifyPassword(item._id, newValue);
-        if (res.success) {
-            setPasswords(passwords.map(p => (p._id === item._id ? { ...p, ...updateObj } : p)));
-            setAlert({ type: "success", message: "✅ Modifié !" });
-            window.location.reload();
+  // 🔹 Afficher / masquer
+  const toggleShowPassword = (id?: string) => {
+    if (!id) return;
+    const newSet = new Set(showPasswordIds);
+    newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+    setShowPasswordIds(newSet);
+  };
 
-        } else {
-            setAlert({ type: "error", message: res.message });
-        }
-    };
+  // 🔹 Générer
+  const generate = () => {
+    const password = GeneratePassword();
+    setNewPassword({ ...newPassword, password });
+  };
 
-    // 🔹 Copier un mot de passe
-    const handleCopy = (password: string) => {
-        navigator.clipboard.writeText(password);
-        setAlert({ type: "success", message: "Mot de passe copié !" });
-    };
+  // ===============================================================
 
-    // 🔹 Afficher / masquer un mot de passe
-    const toggleShowPassword = (id?: string) => {
-        if (!id) return;
-        const newSet = new Set(showPasswordIds);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
-        setShowPasswordIds(newSet);
-    };
+  return (
+    <Container fluid className="py-4 text-light bg-dark min-vh-100">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>Bonjour, {user.firstName} 👋</h2>
+        <Button size="sm" variant="outline-info" onClick={logout}>
+          Se déconnecter
+        </Button>
+      </div>
 
-    // 🔹 Générer un mot de passe aléatoire
-    const generate = () => {
-        const password = GeneratePassword();
-        setNewPassword({ ...newPassword, password });
-    };
+      {alert && <BasicAlerts type={alert.type} message={alert.message} />}
 
-    // ------------------------------------------------------------------
-
-    return (
-        <Container fluid className="py-4 text-light bg-dark min-vh-100">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h2>Bonjour, {user.firstName} 👋</h2>
-                <Button size="sm" variant="outline-info" onClick={logout}>
-                    Se déconnecter
-                </Button>
+      <Row>
+        <Col>
+          <Card className="shadow-sm bg-secondary text-light p-3">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h4>Mes mots de passe</h4>
+              <Button variant="success" onClick={() => setShowModalAdd(true)}>
+                ➕ Ajouter
+              </Button>
             </div>
 
-            {alert && <BasicAlerts type={alert.type} message={alert.message} />}
+            <Table striped bordered hover variant="dark" responsive>
+              <thead>
+                <tr>
+                  <th>Site</th>
+                  <th>Email</th>
+                  <th>Mot de passe</th>
+                  <th>Description</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {passwords.length > 0 ? (
+                  passwords.map((item) => (
+                    <tr key={item._id || item.email}>
+                      <td>{item.site}</td>
+                      <td>{item.email}</td>
+                      <td>
+                        {showPasswordIds.has(item._id || "") ? item.password : "••••••••"}
+                        <Button variant="link" size="sm" onClick={() => toggleShowPassword(item._id)}>
+                          {showPasswordIds.has(item._id || "") ? <EyeSlash /> : <Eye />}
+                        </Button>
+                      </td>
+                      <td>{item.description || "-"}</td>
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="outline-warning"
+                          className="me-2"
+                          onClick={() => {
+                            setSelectedPassword(item);
+                            setShowModalModify(true);
+                          }}
+                        >
+                          Modifier
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          onClick={() => {
+                            setSelectedPassword(item);
+                            setShowModalDelete(true);
+                          }}
+                        >
+                          Supprimer
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-info"
+                          onClick={() => handleCopy(item.password)}
+                        >
+                          Copier
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center">
+                      Aucun mot de passe enregistré.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+          </Card>
+        </Col>
+      </Row>
 
-            <Row>
-                <Col>
-                    <Card className="shadow-sm bg-secondary text-light p-3">
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                            <h4>Mes mots de passe</h4>
-                            <Button variant="success" onClick={() => setShowModalajoutpassword(true)}>
-                                ➕ Ajouter
-                            </Button>
-                            <Button variant="success" onClick={() => setShowModalCSV(true)}>
-                                Exporter CSV
-                            </Button>
-                            <Button variant="success" onClick={() => {
-                                import("../utils/csv").then(({ exportToCsv }) => {
-                                    exportToCsv(user._id);
-                                });
-                            }}>
-                                Importer CSV
-                            </Button>
-                        </div>
+      {/* Modal Ajout */}
+      <Modal show={showModalAdd} onHide={() => setShowModalAdd(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Ajouter un mot de passe</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Site</Form.Label>
+              <Form.Control
+                value={newPassword.site}
+                onChange={(e) => setNewPassword({ ...newPassword, site: e.target.value })}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                value={newPassword.email}
+                onChange={(e) => setNewPassword({ ...newPassword, email: e.target.value })}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Mot de passe</Form.Label>
+              <Form.Control
+                value={newPassword.password}
+                onChange={(e) => setNewPassword({ ...newPassword, password: e.target.value })}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                value={newPassword.description}
+                onChange={(e) => setNewPassword({ ...newPassword, description: e.target.value })}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalAdd(false)}>
+            Annuler
+          </Button>
+          <Button variant="info" onClick={generate}>
+            Générer
+          </Button>
+          <Button variant="success" onClick={handleAddPassword}>
+            Enregistrer
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-                        <Table striped bordered hover variant="dark" responsive>
-                            <thead>
-                                <tr>
-                                    <th>Site</th>
-                                    <th>Email</th>
-                                    <th>Mot de passe</th>
-                                    <th>Description</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {passwords.length > 0 ? (
-                                    passwords.map(item => (
-                                        <tr key={item._id || item.email}>
-                                            <td>
-                                                {item.site}{" "}
-                                                <Button variant="link" size="sm" onClick={() => handleModify(item, "site")}>
-                                                    <Pencil />
-                                                </Button>
-                                            </td>
-                                            <td>
-                                                {item.email}{" "}
-                                                <Button variant="link" size="sm" onClick={() => handleModify(item, "email")}>
-                                                    <Pencil />
-                                                </Button>
-                                            </td>
-                                            <td>
-                                                {showPasswordIds.has(item._id || "")
-                                                    ? item.password
-                                                    : "••••••••"}
-                                                <Button variant="link" size="sm" onClick={() => toggleShowPassword(item._id)}>
-                                                    {showPasswordIds.has(item._id || "") ? <EyeSlash /> : <Eye />}
-                                                </Button>
-                                                <Button variant="link" size="sm" onClick={() => handleModify(item, "password")}>
-                                                    <Pencil />
-                                                </Button>
-                                            </td>
-                                            <td>
-                                                {item.description || "-"}{" "}
-                                                <Button variant="link" size="sm" onClick={() => handleModify(item, "description")}>
-                                                    <Pencil />
-                                                </Button>
-                                            </td>
-                                            <td>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline-info"
-                                                    className="me-2"
-                                                    onClick={() => handleCopy(item.password)}
-                                                >
-                                                    Copier
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline-danger"
-                                                    onClick={() => handleDelete(item._id)}
-                                                >
-                                                    Supprimer
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={5} className="text-center">
-                                            Aucun mot de passe enregistré.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </Table>
-                    </Card>
-                </Col>
-            </Row>
+      {/* Modal Modification */}
+      <Modal show={showModalModify} onHide={() => setShowModalModify(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Modifier le mot de passe</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Site</Form.Label>
+              <Form.Control
+                value={selectedPassword?.site || ""}
+                onChange={(e) =>
+                  setSelectedPassword({ ...selectedPassword!, site: e.target.value })
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                value={selectedPassword?.email || ""}
+                onChange={(e) =>
+                  setSelectedPassword({ ...selectedPassword!, email: e.target.value })
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Mot de passe</Form.Label>
+              <Form.Control
+                value={selectedPassword?.password || ""}
+                onChange={(e) =>
+                  setSelectedPassword({ ...selectedPassword!, password: e.target.value })
+                }
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                value={selectedPassword?.description || ""}
+                onChange={(e) =>
+                  setSelectedPassword({ ...selectedPassword!, description: e.target.value })
+                }
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalModify(false)}>
+            Annuler
+          </Button>
+          <Button variant="success" onClick={handleSaveModification}>
+            Enregistrer les modifications
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-            {/* 🔹 Modal d’ajout */}
-            <Modal show={showModalajoutpassword} onHide={() => setShowModalajoutpassword(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Ajouter un mot de passe</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Site / Application</Form.Label>
-                            <Form.Control
-                                type="text"
-                                placeholder="ex: gmail.com"
-                                value={newPassword.site}
-                                onChange={e => setNewPassword({ ...newPassword, site: e.target.value })}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Email / Nom d’utilisateur</Form.Label>
-                            <Form.Control
-                                type="text"
-                                placeholder="ex: yassar@gmail.com"
-                                value={newPassword.email}
-                                onChange={e => setNewPassword({ ...newPassword, email: e.target.value })}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Mot de passe</Form.Label>
-                            <Form.Control
-                                type="text"
-                                placeholder="••••••••"
-                                value={newPassword.password}
-                                onChange={e => setNewPassword({ ...newPassword, password: e.target.value })}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Description</Form.Label>
-                            <Form.Control
-                                type="text"
-                                placeholder="ex: compte pro"
-                                value={newPassword.description}
-                                onChange={e => setNewPassword({ ...newPassword, description: e.target.value })}
-                            />
-                        </Form.Group>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModalajoutpassword(false)}>
-                        Annuler
-                    </Button>
-                    <Button variant="info" onClick={generate}>
-                        Générer un mot de passe
-                    </Button>
-                    <Button variant="success" onClick={handleAddPassword}>
-                        Enregistrer
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-
-{/* Modal import CSV */}
-  <Modal show={showModalCSV} onHide={() => setShowModalCSV(false)} centered>
-    <Modal.Header closeButton>
-      <Modal.Title>Importer des mots de passe depuis un fichier CSV</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-      <Form>
-        <Form.Group className="mb-3">
-          <Form.Label>Choisir un fichier CSV</Form.Label>
-          <Form.Control
-            type="file"
-            accept=".csv"
-            onChange={(e) => {
-              const input = e.target as HTMLInputElement;
-              const file = input.files?.[0];
-              if (file) {
-                import("../utils/csv")
-                  .then(({ importFromCsv }) => {
-                    importFromCsv(file)
-                      .then(async (importedPasswords) => {
-                        for (const p of importedPasswords) {
-                          await AddPassword(p);
-                        }
-                        setPasswords(prev => [...prev, ...importedPasswords]);
-                        setAlert({ type: "success", message: "Mots de passe importés avec succès ✅" });
-                        setShowModalCSV(false);
-                      })
-                      .catch(error => {
-                        console.error("Erreur lors de l'import CSV :", error);
-                        setAlert({ type: "error", message: "Erreur lors de l'importation du CSV" });
-                      });
-                  });
-              }
-            }}
-          />
-        </Form.Group>
-      </Form>
-    </Modal.Body>
-  </Modal>
-        </Container>
-    );
+      {/* Modal Suppression */}
+      <Modal show={showModalDelete} onHide={() => setShowModalDelete(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirmer la suppression</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Êtes-vous sûr de vouloir supprimer le mot de passe pour{" "}
+          <strong>{selectedPassword?.site}</strong> ?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalDelete(false)}>
+            Annuler
+          </Button>
+          <Button variant="danger" onClick={handleDeletePassword}>
+            Supprimer
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </Container>
+  );
 };
 
 export default Dashboard;
