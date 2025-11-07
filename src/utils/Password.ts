@@ -72,6 +72,7 @@ export async function ListePassword(userId: string) {
 
 /**
  * Supprime un mot de passe
+ *@param id -Id du mot de passe à supprimer
  */
 export async function DeletePassword(id: string) {
   try {
@@ -93,6 +94,7 @@ export async function DeletePassword(id: string) {
 
 /**
  * Modifie un mot de passe
+  *@param id -Id du mot de passe à modifier
  */
 export async function ModifyPassword(id: string, password: string) {
   try {
