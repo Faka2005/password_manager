@@ -8,6 +8,8 @@ export type Password={
 interface ApiError {
   message?: string;
 }
+const API = (process.env.REACT_APP_SOME_CONFIGURATION as string)
+
 /**
  * Ajoute un mot de passe à la base de données
  * @param site -types Password
@@ -18,7 +20,7 @@ interface ApiError {
 export async function AddPassword({site, email,password,description}:Password){
     const userId =InfoUser('id')  
     try {
-    const res = await fetch("https://api-password-manager.onrender.com/user/password", {
+    const res = await fetch(`${API}user/password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId,site, email, password,description }),
@@ -46,7 +48,7 @@ export async function AddPassword({site, email,password,description}:Password){
  */
 export async function ListePassword(userId: string) {
   try {
-    const res = await fetch(`https://api-password-manager.onrender.com/user/password/${userId}`, {
+    const res = await fetch(`${API}${userId}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -76,7 +78,7 @@ export async function ListePassword(userId: string) {
  */
 export async function DeletePassword(id: string) {
   try {
-    const res = await fetch(`https://api-password-manager.onrender.com/user/password/${id}`, {
+    const res = await fetch(`${API}${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
     });
@@ -98,7 +100,7 @@ export async function DeletePassword(id: string) {
  */
 export async function ModifyPassword(id: string, updatedFields: Partial<Password>) {
   try {
-    const response = await fetch(`http://localhost:5000/user/password/${id}`, {
+    const response = await fetch(`${API}${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedFields),

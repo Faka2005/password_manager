@@ -2,11 +2,12 @@ import Papa from "papaparse";
 import { saveAs } from "file-saver";
 import type { Password } from "./Password";
 import { InfoUser } from "./Storagelocal";
+const API = (process.env.REACT_APP_SOME_CONFIGURATION as string)
 
 export async function exportToCsv(userId: string) {
   try {
     const response = await fetch(
-      `https://api-password-manager.onrender.com/user/password/${userId}`,
+      `${API}${userId}`,
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },

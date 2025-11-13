@@ -5,7 +5,7 @@ interface ApiError {
   message?: string;
 }
 
-
+const API = (process.env.REACT_APP_SOME_CONFIGURATION as string)
 
 export async function RegisterUserApi(
 {  firstName,
@@ -15,7 +15,7 @@ export async function RegisterUserApi(
   }:RegisterUser
 ) {
   try {
-    const res = await fetch("https://api-password-manager.onrender.com/register/user", {
+    const res = await fetch(`${API}register/user` {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firstName, lastName, email, password }),
@@ -42,7 +42,7 @@ export async function LoginUserApi(
   password}:LoginUser
 ) {
   try {
-    const res = await fetch("https://api-password-manager.onrender.com/login/user", {
+    const res = await fetch(`${API}login/user`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({  email, password }),
