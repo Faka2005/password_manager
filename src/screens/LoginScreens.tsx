@@ -72,7 +72,7 @@ export default function LoginForm() {
          setEmail("");
          setPassword("");
          navigate("/", { replace: true }); //Emmener à la page d'accceuil et empêcher de revenir en arriére avec les fléches
-
+        window.location.reload();
        } else {
          setAlert({ type: "error", message: "Erreur" });
        }
